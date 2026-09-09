@@ -18,6 +18,16 @@ Open http://localhost:8080 and sign in with the created account. Use http://loca
 
 Compose starts PostgreSQL, runs migrations, collects Django admin assets, starts Gunicorn, and serves the frontend through Nginx. Only Nginx is exposed; the database and backend stay on the internal network. Data persists in named volumes. `docker compose down` preserves it; adding `-v` deletes the data.
 
+### Change the host port
+
+Edit `backend/.env`:
+
+```dotenv
+APP_PORT=9090
+```
+
+Apply the configuration with `docker compose up -d` from this directory, then open `http://localhost:9090`. No image rebuild is needed. The frontend container continues to listen on port 80; Django and PostgreSQL remain internal. The default localhost CSRF origin uses `${APP_PORT}` automatically. If you configured a custom domain/origin, update its port in `DJANGO_CSRF_TRUSTED_ORIGINS` too.
+
 The default bind is localhost. For access from another machine set `APP_BIND=0.0.0.0`, set your hostname in `DJANGO_ALLOWED_HOSTS` (keep `localhost` for the health check), and set the exact browser origin in `DJANGO_CSRF_TRUSTED_ORIGINS`. For HTTPS through your own reverse proxy, set `COOKIE_SECURE=true` and use an HTTPS trusted origin. HTTPS is needed when sending passwords or API tokens over a network. No hosting provider or cloud deployment configuration is included.
 
 To update after source changes, run `docker compose up --build -d`. Back up before schema changes:
