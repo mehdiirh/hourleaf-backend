@@ -40,8 +40,17 @@ def ask(prompt, kind='Text', default=None):
     return action('ask', **params)
 
 def format_date(value, pattern):
-    return action('format.date', WFDate=text(reference=value), WFDateFormatStyle='Custom',
-                  WFDateFormat='Custom', WFDateFormatString=pattern, WFLocale='en_US_POSIX')
+    if pattern == 'yyyy-MM-dd':
+        formatted = action('format.date', WFDate=text(reference=value),
+                           WFDateFormatStyle='ISO 8601', WFISO8601IncludeTime=False,
+                           WFTimeFormatStyle='None', WFLocale='en_US_POSIX')
+    else:
+        formatted = action('format.date', WFDate=text(reference=value),
+                           WFDateFormatStyle='Custom', WFDateFormat='Custom',
+                           WFDateFormatString='HH:mm', WFTimeFormatStyle='HH:mm',
+                           WFLocale='en_US_POSIX')
+    # Materialize the formatted result as text before putting it into JSON.
+    return action('gettext', WFTextActionText=text(reference=formatted))
 
 def variable(name):
     return {'Type': 'Variable', 'VariableName': name}
@@ -63,27 +72,28 @@ types_url = action('url', WFURLActionURL=text(reference=types_text))
 headers = fields({'Authorization': text('Token ', token),
                   'Content-Type': 'application/json', 'Accept': 'application/json'})
 previous = action('downloadurl', WFURL=text(reference=types_url), WFHTTPMethod='GET', WFHTTPHeaders=headers)
-new_label = '＋ Add a new work type'
-initial = action('list', WFItems=[new_label])
-action('setvariable', WFVariableName='Work types', WFInput=ref(initial))
+# Explicit menu branches avoid an untyped Selected Item string comparison on iOS.
+work_group = str(uuid.uuid4()).upper()
+work_choices = ['Choose a previous work type', 'Enter a new work type']
+action('choosefrommenu', GroupingIdentifier=work_group, WFControlFlowMode=0,
+       WFMenuPrompt='Work type (choose New if you have no previous entries)', WFMenuItems=work_choices)
+action('choosefrommenu', GroupingIdentifier=work_group, WFControlFlowMode=1,
+       WFMenuItemTitle=work_choices[0])
 repeat = str(uuid.uuid4()).upper()
 action('repeat.each', GroupingIdentifier=repeat, WFControlFlowMode=0, WFInput=ref(previous))
 name = action('getvalueforkey', WFInput=ref(variable('Repeat Item')),
               WFDictionaryKey='name', WFGetDictionaryValueType='Value')
-action('appendvariable', WFVariableName='Work types', WFInput=ref(name))
-action('repeat.each', GroupingIdentifier=repeat, WFControlFlowMode=2)
-selected = action('choosefromlist', WFInput=ref(variable('Work types')),
-                  WFChooseFromListActionPrompt='Choose a previous work type or add a new one',
+action('gettext', WFTextActionText=text(reference=name))
+names = action('repeat.each', GroupingIdentifier=repeat, WFControlFlowMode=2)
+selected = action('choosefromlist', WFInput=ref(names),
+                  WFChooseFromListActionPrompt='Previous work types',
                   WFChooseFromListActionSelectMultiple=False)
-condition = str(uuid.uuid4()).upper()
-action('conditional', GroupingIdentifier=condition, WFControlFlowMode=0,
-       WFInput={'Type': 'Variable', 'Variable': ref(selected)},
-       WFCondition=4, WFConditionalActionString=new_label)
+action('setvariable', WFVariableName='Selected work type', WFInput=ref(selected))
+action('choosefrommenu', GroupingIdentifier=work_group, WFControlFlowMode=1,
+       WFMenuItemTitle=work_choices[1])
 new_name = ask('New work type')
 action('setvariable', WFVariableName='Selected work type', WFInput=ref(new_name))
-action('conditional', GroupingIdentifier=condition, WFControlFlowMode=1)
-action('setvariable', WFVariableName='Selected work type', WFInput=ref(selected))
-action('conditional', GroupingIdentifier=condition, WFControlFlowMode=2)
+action('choosefrommenu', GroupingIdentifier=work_group, WFControlFlowMode=2)
 work_type = variable('Selected work type')
 now = action('date', WFDateActionMode='Current Date')
 chosen_date = ask('Work date', 'Date', text(reference=now))
@@ -97,7 +107,7 @@ for choice in choices:
     body = {'date': text(reference=day), 'work_type': text(reference=work_type)}
     if choice == choices[0]:
         hours = pick([f'{n:02}' for n in range(25)], 'Hours worked')
-        minutes = pick([f'{n:02}' for n in range(60)], 'Additional minutes (choose 00 for 24 hours)')
+        minutes = pick([f'{n:02}' for n in range(0, 60, 10)], 'Additional minutes (choose 00 for 24 hours)')
         duration_text = text(reference=hours)
         duration_text['Value']['string'] += ':\ufffc'
         duration_text['Value']['attachmentsByRange']['{2, 1}'] = minutes
@@ -145,6 +155,10 @@ requests = [a['WFWorkflowActionParameters'] for a in ACTIONS if a['WFWorkflowAct
 assert len(requests) == 2
 for request, expected in zip(requests, [{'date', 'work_type', 'duration'}, {'date', 'work_type', 'start_time', 'end_time'}]):
     assert {v['WFKey']['Value']['string'] for v in request['WFJSONValues']['Value']['WFDictionaryFieldValueItems']} == expected
+assert not any(a['WFWorkflowActionIdentifier'].endswith('.conditional') for a in ACTIONS)
+for item in ACTIONS:
+    if item['WFWorkflowActionIdentifier'].endswith('.format.date'):
+        assert item['WFWorkflowActionParameters']['WFTimeFormatStyle'] == 'None'
 # Regression checks for fields that previously imported as blank or text-only.
 all_requests = [a['WFWorkflowActionParameters'] for a in ACTIONS
                 if a['WFWorkflowActionIdentifier'].endswith('.downloadurl')]

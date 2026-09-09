@@ -1,6 +1,6 @@
 # Log work to Hourleaf — Apple Shortcut
 
-Open `Hourleaf-v3.shortcut` on your iPhone and add it to Shortcuts. During setup enter:
+Open `Hourleaf-v4.shortcut` on your iPhone and add it to Shortcuts. During setup enter:
 
 1. Your complete entries endpoint, for example `https://hours.example.com/api/entries/`.
 2. Your API token, without the `Token ` prefix.
@@ -44,3 +44,7 @@ Replaces bare request URL attachments with visible token strings wired through e
 ## Version 3
 
 Corrects the Replace Text identifier to `is.workflow.actions.text.replace`. All action identifiers were checked against the ToolKit v63 catalog and the separately documented control-flow actions. This fixes the Unknown Action immediately after the first URL action. Physical iPhone execution is still unverified.
+
+## Version 4 (uncommitted)
+
+Uses explicit Previous/New work-type menu branches instead of the broken Selected Item comparison. With no history, choose Enter a new work type. Date/time formatting disables the extra time component and converts formatted output to Text before JSON serialization. Native date and time pickers remain. Only lightweight generator checks and signing were performed; an iPhone run is still needed.
