@@ -94,6 +94,18 @@ Type matching normalizes case, whitespace, Unicode compatibility and Arabic/Pers
 DJANGO_SECRET_KEY=test-only-key .venv/bin/python manage.py test
 ```
 
-Five focused tests cover access isolation, CSRF/session login, API tokens, duration/range validation, normalization, updates and analytics. Per-user row locks serialize creates/updates in PostgreSQL for daily totals and overlap checks. SQLite is for single-process development, not concurrent production writes. Login throttling is a basic per-worker in-memory safeguard; use your own reverse proxy's rate limiting if exposed publicly. Tokens have no automatic expiry; rotate/revoke them using the command above. No shared test users or demo records are created.
+Nineteen tests cover access isolation, CSRF/session login, API tokens, duration/range validation, Unicode normalization, pagination, updates, caching and analytics. Three concurrency tests run on PostgreSQL (and are skipped on SQLite); they verify daily totals, overlap prevention and preservation of simultaneous partial updates. Per-user row locks serialize creates/updates in PostgreSQL for daily totals and overlap checks. SQLite is for single-process development, not concurrent production writes. Nginx rate-limits both API and admin sign-in across workers, alongside Django's per-worker login throttle. Nginx overwrites incoming forwarding headers; Compose sets TRUSTED_PROXY_COUNT=1 for that internal hop. Direct local Django defaults to zero trusted proxies. Tokens have no automatic expiry; rotate/revoke them using the command above. No shared test users or demo records are created.
 
 Auth implementation follows the [DRF authentication documentation](https://www.django-rest-framework.org/api-guide/authentication/); hosting security guidance follows [Django's checklist](https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/).
+
+
+## HTTP integration check
+
+`scripts/http_smoke.py` verifies 25 behaviors through the running frontend proxy, including manifest/icons, security headers, authentication, CSRF, record create/edit/delete, normalization and analytics. Run it **only against a disposable account/database**: it creates and deletes its own test entries, leaving its generated work type available for reuse.
+
+```sh
+HOURLEAF_TEST_URL=http://localhost:8081 \
+HOURLEAF_TEST_USERNAME=your-test-user \
+HOURLEAF_TEST_PASSWORD=your-test-password \
+.venv/bin/python scripts/http_smoke.py
+```
