@@ -1,0 +1,50 @@
+name: hourleaf
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: worklog
+      POSTGRES_USER: worklog
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U worklog -d worklog"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  backend:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: worklog
+      POSTGRES_USER: worklog
+      DJANGO_DEBUG: "false"
+    command: sh -c "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --access-logfile -"
+    volumes:
+      - static:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8000/api/auth/csrf/', headers={'Host':'localhost'}))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+  frontend:
+    build: ../frontend
+    restart: unless-stopped
+    ports:
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-8080}:80"
+    volumes:
+      - static:/var/www/static:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+volumes:
+  database:
+  static:
