@@ -1,4 +1,6 @@
 from datetime import date, timedelta
+from collections.abc import Mapping
+import re
 from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.db import transaction
 from django.db.models import Sum, Count, Max
@@ -9,7 +11,7 @@ from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 from rest_framework import status, viewsets
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -33,6 +35,10 @@ class LoginView(APIView):
     throttle_scope = "login"
 
     def post(self, request):
+        if not isinstance(request.data, Mapping):
+            return Response(
+                {"detail": "Send a JSON object with username and password."}, status=400
+            )
         username, password = request.data.get("username"), request.data.get("password")
         if not isinstance(username, str) or not isinstance(password, str):
             return Response({"detail": "Enter your username and password."}, status=400)
@@ -63,6 +69,11 @@ class MeView(APIView):
 
 
 def date_range(params):
+    for key in ("from", "to"):
+        if key in params and not re.fullmatch(
+            r"[0-9]{4}-[0-9]{2}-[0-9]{2}", params[key]
+        ):
+            raise ValidationError("Dates must use YYYY-MM-DD.")
     try:
         start = date.fromisoformat(
             params.get("from", date.today().replace(month=1, day=1).isoformat())
@@ -102,6 +113,13 @@ class EntryViewSet(viewsets.ModelViewSet):
             # Serialize writes for each user to enforce the daily limit under concurrency.
             get_user_model().objects.select_for_update().get(pk=self.request.user.pk)
             instance = serializer.instance
+            if instance:
+                # DRF reads the instance before acquiring the user lock. Refresh it
+                # so simultaneous partial updates cannot overwrite each other.
+                try:
+                    instance.refresh_from_db()
+                except Entry.DoesNotExist:
+                    raise NotFound("This entry has already been deleted.")
             day = serializer.validated_data.get(
                 "date", instance.date if instance else None
             )
@@ -145,6 +163,12 @@ class EntryViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         self._save(serializer)
+
+    def perform_destroy(self, instance):
+        with transaction.atomic():
+            get_user_model().objects.select_for_update().get(pk=self.request.user.pk)
+            # Coordinate deletion with writes so an update cannot resurrect a row.
+            Entry.objects.filter(pk=instance.pk, user=self.request.user).delete()
 
 
 class WorkTypesView(APIView):

@@ -35,7 +35,12 @@ class EntrySerializer(serializers.ModelSerializer):
 
     def validate_work_type(self, value):
         name = " ".join(value.split())
-        if not normalize_type(name):
+        normalized = normalize_type(name)
+        if len(normalized) > 160:
+            raise serializers.ValidationError(
+                "Work type is too long after Unicode normalization."
+            )
+        if not normalized:
             raise serializers.ValidationError("Enter a work type.")
         return name
 
