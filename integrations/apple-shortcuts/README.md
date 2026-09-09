@@ -1,6 +1,6 @@
 # Log work to Hourleaf — Apple Shortcut
 
-Open `Hourleaf-v2.shortcut` on your iPhone and add it to Shortcuts. During setup enter:
+Open `Hourleaf-v3.shortcut` on your iPhone and add it to Shortcuts. During setup enter:
 
 1. Your complete entries endpoint, for example `https://hours.example.com/api/entries/`.
 2. Your API token, without the `Token ` prefix.
@@ -40,3 +40,7 @@ The generator checks action references, editor-visible request URL bindings, GET
 ## Version 2
 
 Replaces bare request URL attachments with visible token strings wired through explicit URL actions; adds native date/time pickers, duration lists, and authenticated work-type retrieval. Replace the previous shortcut with this version and re-enter your URL and token.
+
+## Version 3
+
+Corrects the Replace Text identifier to `is.workflow.actions.text.replace`. All action identifiers were checked against the ToolKit v63 catalog and the separately documented control-flow actions. This fixes the Unknown Action immediately after the first URL action. Physical iPhone execution is still unverified.

@@ -56,7 +56,7 @@ token = action('gettext', WFTextActionText='PASTE_YOUR_API_TOKEN')
 action('comment', WFCommentActionText='Configure the two Text fields above with your complete entries API URL and token. Date and range times use native pickers. Duration uses hours/minutes lists. Do not share a configured copy containing your token.')
 # URL fields require editor-visible token strings, not bare token attachments.
 entry_url = action('url', WFURLActionURL=text(reference=endpoint))
-types_text = action('replacetext', WFInput=text(reference=endpoint),
+types_text = action('text.replace', WFInput=text(reference=endpoint),
                     WFReplaceTextFind='/entries/?$', WFReplaceTextReplace='/work-types/',
                     WFReplaceTextRegularExpression=True, WFReplaceTextCaseSensitive=True)
 types_url = action('url', WFURLActionURL=text(reference=types_text))
