@@ -1,6 +1,6 @@
 # Log work to Hourleaf — Apple Shortcut
 
-Open `Hourleaf.shortcut` on your iPhone and add it to Shortcuts. During setup enter:
+Open `Hourleaf-v2.shortcut` on your iPhone and add it to Shortcuts. During setup enter:
 
 1. Your complete entries endpoint, for example `https://hours.example.com/api/entries/`.
 2. Your API token, without the `Token ` prefix.
@@ -11,14 +11,16 @@ If setup questions do not appear, edit the shortcut and replace its first two Te
 docker compose exec backend python manage.py api_token YOUR_USERNAME
 ```
 
-Run the shortcut, confirm today's Gregorian date (YYYY-MM-DD), enter a work type, and choose:
+Run the shortcut. It fetches your saved work types and displays them in a list, with **Add a new work type** available even when you have no history. Select a type, then choose the work date using the native date picker (default today). Dates are formatted for the API automatically.
 
-- **Total duration:** hours and minutes, such as `02:30` (00:01 through 24:00).
-- **Start/end range:** 24-hour times, such as `09:00` and `11:30`. The end must be later on the same date; split overnight work across dates.
+Choose how to record the time:
+
+- **Total duration:** select hours and minutes from two lists. The total must be 00:01 through 24:00.
+- **Start/end range:** choose both times using native time pickers. The end must be later on the same date; split overnight work across dates.
 
 The shortcut submits one JSON request and shows the API response. A response containing the new entry's `id` confirms creation. Validation errors appear in the response; network or HTTP errors may be displayed by Shortcuts itself. It does not retry automatically. If a connection fails after submitting, check Hourleaf before running again to avoid duplicate entries.
 
-Use the same work type spelling as in Hourleaf. This shortcut uses free-text work types; it does not fetch suggestions.
+Existing types are fetched from `/api/work-types/` using your token. Only a newly added type requires typing. Keep the configured entries URL ending in `/api/entries/`; the work-types URL is derived from it.
 
 Your iPhone must be able to reach the server. `localhost` on an iPhone refers to the phone itself. For LAN access, see the main README's `APP_BIND`, allowed-host and port settings. Use your HTTPS server URL for access over a network. A saved token is editable inside the shortcut: share only the unconfigured template.
 
@@ -33,4 +35,8 @@ python3 integrations/apple-shortcuts/build.py /tmp/Hourleaf.unsigned.shortcut
 shortcuts sign --mode anyone --input /tmp/Hourleaf.unsigned.shortcut --output /tmp/Hourleaf.shortcut
 ```
 
-The generator checks action references and both mutually exclusive API payloads. Apple signing was verified. Interactive execution on a physical iPhone has not been tested; no live records were created during development.
+The generator checks action references, editor-visible request URL bindings, GET/POST methods, native picker types, duration formatting, and both mutually exclusive API payloads. Apple signing was verified. Interactive execution on a physical iPhone has not been tested; no live records were created during development.
+
+## Version 2
+
+Replaces bare request URL attachments with visible token strings wired through explicit URL actions; adds native date/time pickers, duration lists, and authenticated work-type retrieval. Replace the previous shortcut with this version and re-enter your URL and token.
