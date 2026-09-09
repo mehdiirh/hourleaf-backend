@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework.authtoken.models import Token
-from .models import Entry, WorkType
+from .models import WorkType
 
 
 class TrackingTests(TestCase):

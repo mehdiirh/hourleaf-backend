@@ -3,7 +3,7 @@ from threading import Barrier
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.db import close_old_connections
+from django.db import close_old_connections, connections
 from django.test import TransactionTestCase, skipUnlessDBFeature
 from rest_framework.test import APIClient
 
@@ -35,7 +35,7 @@ class ConcurrentWritesTests(TransactionTestCase):
             try:
                 return getattr(client, method)(path, data, format="json").status_code
             finally:
-                close_old_connections()
+                connections.close_all()
 
         with patch.object(EntryViewSet, "_save", synchronized_save):
             with ThreadPoolExecutor(max_workers=len(requests)) as pool:
